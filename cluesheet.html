@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>I have a raging clue</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+        integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+  <style>
+    .just-a-list {
+      list-style: none;
+      margin-left: 0;
+      padding-left: 0;
+    }
+
+    input[type="checkbox"] {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    input[type="checkbox"] + label {
+      cursor: pointer;
+      font-size: 150%
+    }
+
+    input[type="checkbox"] + label:hover,
+    input[type="checkbox"]:focus + label {
+      text-shadow: 1px 2px 1ch #545454;
+    }
+    input[type="checkbox"]:checked + label {
+      text-decoration: line-through;
+      color: #a80000;
+    }
+  </style>
+</head>
+<body ng-app="app" data-ng-controller="main" class="container-fluid">
+<div class="row">
+  <div class="col-sm-4"
+       data-ng-repeat="group in data" data-ng-init="groupId = $index; probFn = getProb(group)"
+  >
+    <section class="panel panel-default">
+      <div class="panel-heading"><h5>
+        <span data-ng-bind="::group.title"></span> 1/<span data-ng-bind="probFn()"></span>
+        <button class="btn btn-xs pull-right" data-ng-click="editing = !editing; !editing && (group.picked = {}); !editing && updateUri()">edit</button>
+      </h5>
+      </div>
+      <div class="panel-body">
+        <div data-ng-if="editing">
+          <button class="btn" data-ng-click="newItem(group.group);">new</button>
+          <button class="btn" data-ng-click="group.group.sort()">Sort</button>
+          <button class="btn btn-danger" data-ng-click="group.reset()"> reset</button>
+        </div>
+        <ul class="just-a-list">
+          <li data-ng-repeat="item in group.group track by $index">
+            <input type="checkbox" id="{{groupId+'.'+$index}}"
+                   data-ng-if-start="!editing"
+                   data-ng-model="group.picked[$index]"
+            >
+            <label for="{{groupId+'.'+$index}}"
+                   data-ng-if-end
+                   data-ng-bind="item"
+            ></label>
+            <div class="form-inline">
+              <input class="form-control" type="text" data-ng-show="editing" data-ng-model="group.group[$index]">
+              <button class="btn btn-danger" data-ng-if="editing && group.group.length > 2"
+                      data-ng-click="dropIndex($index, group.group)">-
+              </button>
+            </div>
+
+
+          </li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+<button class="btn btn-danger" data-ng-click="newGame()">New Game</button>
+<button class="btn" data-ng-click="showImportBox = !showImportBox;">Import/Export</button>
+<div data-ng-if="showImportBox">
+  <textarea class="form-control" rows="5" data-ng-model="importModel"></textarea>
+  <button class="btn" data-ng-click="import(importModel)">Import Game</button>
+  <button class="btn" data-ng-click="importModel = generateModel(data)">Export Game</button>
+</div>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ramda/0.19.1/ramda.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.0/angular.min.js"></script>
+<script>
+  (function (undefined, angular, R) {
+    angular.module('app', []).controller('main', ['$scope', '$location', function ($scope, $location) {
+      var onlySelected = R.filter(R.equals(true))
+          , getDataParam = R.compose(atob, R.defaultTo(''), R.prop('d'),R.invoker(0, 'search'), R.always($location))
+          , setDataParam = R.compose(R.invoker(2, 'search')('d', R.__, $location), btoa)
+          , imported;
+
+      $scope.getProb = function (group) {
+        return function () {
+          var picked = Object.keys(onlySelected(group.picked)).length;
+          return (group.group.length - picked);
+        }
+      };
+
+      function resetPicked(group) {
+        group.picked = {};
+      }
+
+      $scope.updateUri = function () {
+        setDataParam(this.generateModel(this.data));
+      };
+      $scope.newGame = function () {
+        $scope.data.forEach(resetPicked);
+      };
+      $scope.import = function (rawData) {
+        var data = JSON.parse(rawData);
+        if (angular.isArray(data) && data.length === 3) {
+          data.forEach(function (group, idx) {
+            $scope.data[idx].group = group;
+          });
+          $scope.newGame();
+        }
+        this.updateUri();
+      };
+
+      $scope.dropIndex = R.invoker(2, 'splice')(R.__, 1, R.__);
+      $scope.newItem = R.invoker(1, 'unshift')('unknown', R.__);
+      $scope.data = [
+        {
+
+          title: 'Suspects'
+          , reset: function () {
+          this.picked = {};
+          this.group = [
+            'Miss Scarlet'
+            , 'Col. Mustard'
+            , 'Mrs. White'
+            , 'Mr. Green'
+            , 'Mrs. Peacock'
+            , 'Prof. Plum'
+          ];
+        }
+          , picked: {}
+          , group: []
+        }
+        , {
+          title: 'Weapons'
+          , reset: function () {
+            this.picked = {};
+            this.group = [
+              'Candlestick'
+              , 'Knife'
+              , 'Lead pipe'
+              , 'Revolver'
+              , 'Rope'
+              , 'Wrench'
+            ];
+          }
+          , picked: {}
+          , group: []
+        }
+        , {
+          title: 'Rooms'
+          , reset: function () {
+            this.picked = {};
+            this.group = [
+              'Kitchen'
+              , 'Ballroom'
+              , 'Conservatory'
+              , 'Dining Room'
+              , 'Billiard Room'
+              , 'Library'
+              , 'Lounge'
+              , 'Hall'
+              , 'Study'
+            ];
+          }
+          , picked: {}
+          , group: []
+        }];
+
+      R.forEach(R.invoker(0, 'reset'), $scope.data);
+      $scope.newGame();
+      $scope.generateModel = R.compose(JSON.stringify, R.map(R.prop('group')));
+
+      // Obtain location
+      if (imported = getDataParam()) {
+        $scope.import(imported);
+      } else {
+        $scope.updateUri();
+      }
+
+    }]);
+  })(void 0, angular, R)
+</script>
+</body>
+</html>
