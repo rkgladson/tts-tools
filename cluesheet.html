@@ -40,16 +40,46 @@
 
     .input-group-btn > input[type="color"].btn {
       padding: 4px;
-      margin: 0;
-      border: none;
       width: 34px;
       height: 34px;
       display: inline-block;
     }
   </style>
 </head>
-<body ng-app="app" data-ng-controller="main" class="container-fluid">
-<div class="row ng-cloak">
+<body ng-app="app" data-ng-controller="main" class="container-fluid ng-cloak">
+<div class="form-inline">
+  <ul class="list-inline">
+    <li
+        data-ng-repeat="player in playeR"
+    >
+      <input class="form-control" type="radio" name="selectedPlayer" data-ng-value="player" data-ng-model="behavior.actor">
+      <div class="input-group">
+        <span class="input-group-btn">
+          <input type="color" class="btn btn-default" data-ng-model="player.c">
+        </span>
+        <input type="text" class="form-control" data-ng-model="player.n" data-ng-readonly="$first">
+        <span class="input-group-btn"
+              data-ng-if="!$first"
+        >
+          <button class="btn btn-danger"
+                  data-ng-click="removePlayer($index)"
+          >
+            <span class="glyphicon glyphicon-remove-sign" aria-hidden="true"></span>
+            <span class="sr-only">Remove player</span>
+          </button>
+        </span>
+      </div>
+    </li>
+    <li>
+      <button class="btn btn-success"
+              data-ng-click="newPlayer()"
+      >
+        <span>New Player</span>
+      </button>
+    </li>
+  </ul>
+</div>
+<div class="row">
   <div class="col-sm-4"
        data-ng-repeat="group in data" data-ng-init="groupId = $index; probFn = getProb(group)"
   >
@@ -92,15 +122,25 @@
         </div>
         <ul class="just-a-list">
           <li data-ng-repeat="item in group.group">
-            <input type="checkbox" id="{{groupId+'.'+$index}}"
-                   data-ng-if-start="!editing"
-                   data-ng-model="group.picked[$index]"
+            <div class="form-inline"
+                 data-ng-if="!editing"
             >
-            <label for="{{groupId+'.'+$index}}"
-                   data-ng-if-end
-                   data-ng-bind="item.n"
-                   data-ng-style="{color: item.c||'black'}"
-            ></label>
+              <input type="checkbox" id="{{groupId+'.'+$index}}"
+                     data-ng-model="group.picked[$index]"
+                     data-ng-change="group.pickedBy[$index] = group.picked[$index] ? behavior.actor : undefined"
+              >
+              <label for="{{groupId+'.'+$index}}"
+                     data-ng-bind="item.n"
+                     data-ng-style="{color: group.pickedBy[$index].c||'black'}"
+              ></label>
+              <select class="form-control"
+                      data-ng-if="group.picked[$index]"
+                      data-ng-model="group.pickedBy[$index]"
+                      data-ng-options="player.n for player in playeR"
+              ></select>
+            </div>
+
+
             <div class="form"
                  data-ng-if="editing"
             >
@@ -155,7 +195,7 @@
 </div>
 
 <div class="form"
-    data-ng-if="showImportBox" data-ng-init="importModel = generateModel(data)"
+     data-ng-if="showImportBox" data-ng-init="importModel = generateModel(data)"
 >
   <textarea class="form-control" rows="5" data-ng-model="importModel"></textarea>
   <button class="btn btn-default"
@@ -181,6 +221,9 @@
     angular.module('app', []).controller('main', ['$scope', '$location', function ($scope, $location) {
       var onlySelected = R.filter(R.equals(true))
           , imported;
+      var you = {
+        n: 'Me', c: '#000000'
+      };
 
       function getDataParam() {
         return LZString.decompressFromBase64($location.search().v1 || '');
@@ -204,6 +247,7 @@
       $scope.compN = function (a, b) {
         return a.n < b.n ? -1 : (b.n < a.n ? 1 : 0);
       };
+      $scope.behavior = {actor: you};
 
       $scope.updateUri = function () {
         setDataParam(this.generateModel(this.data));
@@ -229,56 +273,77 @@
         group.unshift({n: 'unknown', c: '#000000'});
       };
 
+      $scope.playeR = [you];
+      $scope.newPlayer = function () {
+        this.playeR.push({c: '#000000', n: 'Player ' + (this.playeR.length + 1)})
+      };
+      $scope.removePlayer = function (index) {
+        var player = this.dropIndex(index, this.playeR)[0];
+        this.data.forEach(function (group) {
+          group.group.forEach(function removePickedPlayer(x, index) {
+            if (group.pickedBy[index] === player) {
+              group.pickedBy[index] = undefined;
+            }
+          })
+        });
+
+      };
       $scope.data = [
         {
           title: 'Suspects'
           , reset: function () {
           this.picked = {};
+          this.pickedBy = {};
           this.group = [
-            {n: 'Miss Scarlet', c: '#aa0000'}
-            , {n: 'Col. Mustard', c: '#dddd11'}
-            , {n: 'Mrs. White', c: '#bbbbbb'}
-            , {n: 'Mr. Green', c: '#33aa33'}
-            , {n: 'Mrs. Peacock', c: '#2233bb'}
-            , {n: 'Prof. Plum', c: '#bb11aa'}
+            {n: 'Miss Scarlet'}
+            , {n: 'Col. Mustard'}
+            , {n: 'Mrs. White'}
+            , {n: 'Mr. Green'}
+            , {n: 'Mrs. Peacock'}
+            , {n: 'Prof. Plum'}
           ];
         }
           , picked: {}
+          , pickedBy: {}
           , group: []
         }
         , {
           title: 'Weapons'
           , reset: function () {
             this.picked = {};
+            this.pickedBy = {};
             this.group = [
-              {n: 'Candlestick', c: '#000000'}
-              , {n: 'Knife', c: '#000000'}
-              , {n: 'Lead pipe', c: '#000000'}
-              , {n: 'Revolver', c: '#000000'}
-              , {n: 'Rope', c: '#000000'}
-              , {n: 'Wrench', c: '#000000'}
+              {n: 'Candlestick'}
+              , {n: 'Knife'}
+              , {n: 'Lead pipe'}
+              , {n: 'Revolver'}
+              , {n: 'Rope'}
+              , {n: 'Wrench'}
             ];
           }
           , picked: {}
+          , pickedBy: {}
           , group: []
         }
         , {
           title: 'Rooms'
           , reset: function () {
             this.picked = {};
+            this.pickedBy = {};
             this.group = [
-              {n: 'Kitchen', c: '#000000'}
-              , {n: 'Ballroom', c: '#000000'}
-              , {n: 'Conservatory', c: '#000000'}
-              , {n: 'Dining Room', c: '#000000'}
-              , {n: 'Billiard Room', c: '#000000'}
-              , {n: 'Library', c: '#000000'}
-              , {n: 'Lounge', c: '#000000'}
-              , {n: 'Hall', c: '#000000'}
-              , {n: 'Study', c: '#000000'}
+              {n: 'Kitchen'}
+              , {n: 'Ballroom'}
+              , {n: 'Conservatory'}
+              , {n: 'Dining Room'}
+              , {n: 'Billiard Room'}
+              , {n: 'Library'}
+              , {n: 'Lounge'}
+              , {n: 'Hall'}
+              , {n: 'Study'}
             ];
           }
           , picked: {}
+          , pickedBy: {}
           , group: []
         }];
 
