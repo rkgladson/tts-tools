@@ -275,8 +275,12 @@
 
       $scope.playeR = [you];
       $scope.newPlayer = function () {
-        this.playeR.push({c: '#000000', n: 'Player ' + (this.playeR.length + 1)})
+        var thisNewPlayer = {c: '#000000', n: 'Player ' + (this.playeR.length + 1)};
+        this.playeR.push(thisNewPlayer)
+        return thisNewPlayer;
       };
+      // Obviously you would never play clue by yourself.... would you?
+      $scope.newPlayer().c = '#a2a2a2';
       $scope.removePlayer = function (index) {
         var player = this.dropIndex(index, this.playeR)[0];
         this.data.forEach(function (group) {
